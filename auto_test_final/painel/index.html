@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Auto Test</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;margin:0;padding:14px}
+main{max-width:620px;margin:0 auto}
+h1{font-size:22px;margin:0}
+.sub{margin:2px 0 12px;color:#94a3b8;font-size:13px}
+.card{background:#1e293b;border-radius:12px;padding:14px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+input{width:110px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:6px;font-size:14px}
+button,select{font-size:15px;border-radius:8px;border:0;padding:10px 14px}
+button{background:#2563eb;color:#fff}
+button:disabled{background:#475569}
+button.perigo{background:#dc2626}
+button.sec{background:#475569}
+select{width:100%;background:#0f172a;color:#e2e8f0;border:1px solid #334155;margin:6px 0}
+.det{font-size:12px;color:#94a3b8;margin-top:3px}
+.geral{font-size:24px;font-weight:700;text-align:center;margin:6px 0}
+.ok{color:#4ade80}.fail{color:#f87171}.inc{color:#fbbf24}.safe{color:#fb923c}
+.run,.wait{color:#60a5fa}.pend,.na{color:#94a3b8}
+.t{border-top:1px solid #334155;padding:8px 0}
+.t:first-child{border-top:0}
+.nome{font-weight:600}
+#seg{font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td,th{text-align:left;padding:4px 2px;border-top:1px solid #334155}
+a{color:#93c5fd}
+</style>
+</head>
+<body>
+<main>
+<h1>Auto Test</h1>
+<p class='sub'>Bancada modular de diagnóstico &middot; v1.0 &middot; <span id='fw'></span></p>
+
+<div class='card'>
+<div class='row'><span>Segurança</span><span id='seg'>-</span></div>
+<div class='det' id='segmotivo'></div>
+<div class='row' style='margin-top:8px'>
+<button class='perigo' onclick='post("/api/parada")'>PARADA DE EMERGÊNCIA</button>
+<button class='sec' onclick='post("/api/rearmar")'>Rearmar</button>
+</div>
+</div>
+
+<div class='card'>
+<label for='perfil'>Perfil de teste</label>
+<select id='perfil' onchange='mostrarPerfil()'></select>
+<div class='det' id='pdesc'></div>
+<div class='det' id='palerta'></div>
+<div style='margin:10px 0'>
+<label><input type='radio' name='modo' value='assistido' checked> Assistido</label>
+&nbsp;&nbsp;
+<label><input type='radio' name='modo' value='automatico' id='rauto'> Automático</label>
+<div class='det' id='pauto'></div>
+</div>
+<button id='ini' style='width:100%' onclick='iniciar()'>Iniciar testes</button>
+</div>
+
+<div class='card' id='perg' style='display:none'>
+<b id='pergtxt'></b>
+<div class='row' style='margin-top:8px'>
+<button onclick='conf(1)'>Sim</button>
+<button class='sec' onclick='conf(0)'>Não</button>
+</div>
+</div>
+
+<div class='card'>
+<div class='row'><span>Sessão</span><b id='estado'>-</b></div>
+<div class='geral' id='geral'>-</div>
+<div class='row'><span>Tempo</span><b id='tempo'>0,0 s</b></div>
+<div id='lista' style='margin-top:8px'></div>
+</div>
+
+<div class='card'>
+<b>Medições (INA219)</b>
+<div class='row'><span>Tensão</span><b id='mv'>&mdash;</b></div>
+<div class='row'><span>Corrente</span><b id='mi'>&mdash;</b></div>
+<div class='det' id='alim'></div>
+<div class='det' id='med'></div>
+</div>
+
+<div class='card'>
+<b>Saída de potência</b>
+<div class='row'><span>Estado</span><b id='saida'>-</b></div>
+<div class='det' id='saidatxt'></div>
+<div class='row' style='margin-top:8px'>
+<button onclick='post("/api/saida?v=1")'>Ligar saída</button>
+<button class='perigo' onclick='post("/api/saida?v=0")'>Desligar</button>
+</div>
+<div class='det'>Só liga com limites máximos definidos e INA219 presente. Use a fonte com limite de corrente baixo.</div>
+</div>
+
+<div class='card'>
+<b>Limites ativos</b>
+<div class='det'>Valem para os testes e para o monitor de segurança. 0 = não definido (sem veredito).</div>
+<div class='row' style='margin-top:6px'><span>Tensão mín. (V)</span><input id='lvmin' type='number' step='0.01' min='0'></div>
+<div class='row'><span>Tensão máx. (V)</span><input id='lvmax' type='number' step='0.01' min='0'></div>
+<div class='row'><span>Corrente mín. (mA)</span><input id='limin' type='number' step='1' min='0'></div>
+<div class='row'><span>Corrente máx. (mA)</span><input id='limax' type='number' step='1' min='0'></div>
+<div class='row'><span>Resistência mín. (&Omega;)</span><input id='lrmin' type='number' step='1' min='0'></div>
+<div class='row'><span>Resistência máx. (&Omega;, 0=sem)</span><input id='lrmax' type='number' step='1' min='0'></div>
+<div class='det' id='teto'></div>
+<div class='row' style='margin-top:8px'>
+<button onclick='aplicarLimites()'>Aplicar e salvar</button>
+<button class='sec' onclick='sugerir()'>Usar sugestão do perfil</button>
+</div>
+</div>
+
+<div class='card'>
+<div class='row'><b>Histórico</b><a href='/export.csv'>Exportar CSV</a></div>
+<div class='det'>Guardado na memória do ESP: perde-se ao reiniciar. Tempo = desde a energização.</div>
+<table><thead><tr><th>#</th><th>Perfil</th><th>Modo</th><th>Resultado</th><th>Duração</th><th>Relatório</th></tr></thead><tbody id='hist'></tbody></table>
+</div>
+</main>
+<script>
+var perfis=[];
+function $(i){return document.getElementById(i);}
+function post(u){return fetch(u,{method:'POST'}).then(function(r){return r.json();}).then(function(d){if(!d.ok){alert(d.msg);}atualizar();}).catch(function(){});}
+function iniciar(){
+  var modo=document.querySelector('input[name=modo]:checked').value;
+  post('/api/iniciar?perfil='+$('perfil').value+'&modo='+modo).then(histCarregar);
+}
+function conf(v){post('/api/confirmar?v='+v);}
+function fmtV(mv){return (mv/1000).toFixed(3).replace('.',',')+' V';}
+function aplicarLimites(){
+  var q='vmin='+Math.round($('lvmin').value*1000)+'&vmax='+Math.round($('lvmax').value*1000)+
+        '&imin='+Math.round($('limin').value)+'&imax='+Math.round($('limax').value)+
+        '&rmin='+Math.round($('lrmin').value)+'&rmax='+Math.round($('lrmax').value);
+  post('/api/limites?'+q).then(function(){campos=false;});
+}
+function sugerir(){
+  var p=perfis[$('perfil').value];if(!p){return;}
+  $('lvmin').value=p.vmin/1000;$('lvmax').value=p.vmax/1000;$('limin').value=p.imin;$('limax').value=p.imax;$('lrmin').value=p.rmin;$('lrmax').value=p.rmax;
+}
+var campos=false;
+function mostrarPerfil(){
+  var p=perfis[$('perfil').value];
+  if(!p){return;}
+  $('pdesc').textContent=p.descricao;
+  $('palerta').textContent='Alerta: '+p.alertas;
+  $('rauto').disabled=!p.automatico;
+  if(!p.automatico){document.querySelector('input[name=modo][value=assistido]').checked=true;}
+  $('pauto').textContent=p.automatico?'':'Modo automático bloqueado: perfil não validado.';
+}
+function carregarPerfis(){
+  fetch('/api/perfis').then(function(r){return r.json();}).then(function(d){
+    perfis=d;var h='';
+    d.forEach(function(p,i){h+="<option value='"+i+"'>"+p.nome+"</option>";});
+    $('perfil').innerHTML=h;mostrarPerfil();
+  });
+}
+function histCarregar(){
+  fetch('/api/historico').then(function(r){return r.json();}).then(function(d){
+    var h='';
+    d.forEach(function(r){h+='<tr><td>'+r.id+'</td><td>'+r.perfil+'</td><td>'+r.modo+"</td><td class='"+r.cod+"'>"+r.geral+'</td><td>'+(r.duracaoMs/1000).toFixed(1)+' s</td><td><a href="/relatorio?id='+r.id+'" target="_blank">abrir</a></td></tr>';});
+    $('hist').innerHTML=h||"<tr><td colspan='6'>Sem diagnósticos ainda.</td></tr>";
+  });
+}
+var ultimoEstado='';
+function atualizar(){
+  fetch('/api/status').then(function(r){return r.json();}).then(function(d){
+    $('fw').textContent=d.fw;
+    $('seg').textContent=d.seguranca.ok?'ARMADA (OK)':'DESARMADA';
+    $('seg').className=d.seguranca.ok?'ok':'safe';
+    $('segmotivo').textContent=d.seguranca.motivo;
+    var s=d.sessao;
+    $('estado').textContent=s.estado+' ('+s.modo+')';
+    $('geral').textContent=s.geral;$('geral').className='geral '+s.geralCod;
+    $('tempo').textContent=(s.decorridoMs/1000).toFixed(1).replace('.',',')+' s';
+    $('ini').disabled=(s.estado==='EXECUTANDO')||!d.seguranca.ok;
+    $('perg').style.display=s.aguardando?'block':'none';
+    $('pergtxt').textContent=s.pergunta;
+    $('alim').textContent=d.alimentacao.texto;
+    $('med').textContent=d.medicoes.texto+' Matriz de pontos: '+(d.matriz?'detectada':'não detectada')+'.';
+    var m=d.medicoes;
+    $('mv').textContent=m.disponivel?fmtV(m.tensao_mv):'indisponível';
+    $('mi').textContent=m.disponivel?(m.corrente_ma+' mA'):'indisponível';
+    var a=d.alimentacao;
+    $('saida').textContent=!a.instalada?'NÃO INSTALADA':(a.ligada?'LIGADA':'DESLIGADA');
+    $('saida').className=a.ligada?'safe':'ok';
+    $('saidatxt').textContent=a.texto;
+    var l=d.limites;
+    $('teto').textContent='Tetos do hardware: '+fmtV(l.tetoV)+' e '+l.tetoI+' mA.';
+    if(!campos){
+      $('lvmin').value=l.vmin/1000;$('lvmax').value=l.vmax/1000;$('limin').value=l.imin;$('limax').value=l.imax;$('lrmin').value=l.rmin;$('lrmax').value=l.rmax;
+      campos=true;
+    }
+    var h='';
+    d.testes.forEach(function(t){
+      h+="<div class='t'><div class='row'><span class='nome'>"+t.nome+"</span><b class='"+t.cod+"'>"+t.txt+"</b></div><div class='det'>"+t.detalhe+"</div></div>";
+    });
+    $('lista').innerHTML=h;
+    if(ultimoEstado==='EXECUTANDO'&&s.estado!=='EXECUTANDO'){histCarregar();}
+    ultimoEstado=s.estado;
+  }).catch(function(){$('seg').textContent='sem conexão';});
+}
+fetch('/api/hora?t='+Math.floor(Date.now()/1000),{method:'POST'}).catch(function(){});
+carregarPerfis();histCarregar();atualizar();
+setInterval(atualizar,700);
+</script>
+</body>
+</html>

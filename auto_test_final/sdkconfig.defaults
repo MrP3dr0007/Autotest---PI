@@ -1,0 +1,5 @@
+# Valores iniciais para ESP-12E/F com 4 MB de flash.
+# Confira tudo em "make menuconfig" antes de gravar.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_BAUD_115200B=y
+CONFIG_CONSOLE_UART_BAUDRATE=115200
